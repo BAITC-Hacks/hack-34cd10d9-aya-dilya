@@ -1,5 +1,6 @@
-import type { RecommendationRequest } from "../shared/contracts";
+import type { SmartRecommendationRequest } from "../shared/contracts";
 import { compareText, normalizeLabel, type Contractor } from "./model";
+import { matchPreferences } from "./preferences";
 
 export const REJECTION_ORDER = ["busy", "budget", "format", "language", "duration"] as const;
 export type RejectionReason = typeof REJECTION_ORDER[number];
@@ -20,7 +21,7 @@ export function compareContractors(a: Contractor, b: Contractor): number {
   return a.priceFromKzt - b.priceFromKzt || compareText(a.id, b.id);
 }
 
-export function analyzeMatches(profiles: readonly Contractor[], request: RecommendationRequest): MatchAnalysis {
+export function analyzeMatches(profiles: readonly Contractor[], request: SmartRecommendationRequest): MatchAnalysis {
   const exclusions: Record<RejectionReason, number> = { busy: 0, budget: 0, format: 0, language: 0, duration: 0 };
   const candidates: Decision[] = profiles
     .filter((p) => normalizeLabel(p.city) === normalizeLabel(request.city) && hasLabel(p.categories, request.category))
@@ -36,9 +37,12 @@ export function analyzeMatches(profiles: readonly Contractor[], request: Recomme
       if (reasons.length) exclusions[reasons[0]]++;
       return { profile, reasons };
     });
+  const scores = new Map(candidates.filter((c) => !c.reasons.length).map((c) =>
+    [c.profile.id, request.preferences ? matchPreferences(c.profile, request.preferences).length : 0]));
   return {
     candidates,
-    eligible: candidates.filter((c) => c.reasons.length === 0).map((c) => c.profile).sort(compareContractors),
+    eligible: candidates.filter((c) => c.reasons.length === 0).map((c) => c.profile)
+      .sort((a, b) => scores.get(b.id)! - scores.get(a.id)! || compareContractors(a, b)),
     exclusions,
   };
 }

@@ -1,5 +1,5 @@
 import type { Contractor } from "../../src/core/model";
-import type { RecommendationRequest } from "../../src/shared/contracts";
+import type { SmartRecommendationRequest } from "../../src/shared/contracts";
 
 /** Unit-test records only: never part of the product catalog. */
 export function contractor(overrides: Partial<Contractor> = {}): Contractor {
@@ -13,6 +13,6 @@ export function contractor(overrides: Partial<Contractor> = {}): Contractor {
   };
 }
 
-export function request(overrides: Partial<RecommendationRequest> = {}): RecommendationRequest {
+export function request(overrides: Partial<SmartRecommendationRequest> = {}): SmartRecommendationRequest {
   return { city: "Алматы", category: "Ведущий", eventFormat: "корпоратив", date: "2026-10-10", budgetKzt: 100000, ...overrides };
 }

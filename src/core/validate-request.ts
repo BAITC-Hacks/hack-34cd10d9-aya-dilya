@@ -1,7 +1,7 @@
-import { RequestValidationError, type RecommendationRequest, type ValidationIssue } from "../shared/contracts";
+import { RequestValidationError, type SmartRecommendationRequest, type ValidationIssue } from "../shared/contracts";
 import { CALENDAR_RANGE, isCalendarDate } from "./model";
 
-export function validateRequest(value: unknown): RecommendationRequest {
+export function validateRequest(value: unknown): SmartRecommendationRequest {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new RequestValidationError([{ field: "request", message: "Передайте параметры мероприятия." }]);
   }
@@ -29,6 +29,9 @@ export function validateRequest(value: unknown): RecommendationRequest {
       !Number.isFinite(input.durationHours) || input.durationHours <= 0 || input.durationHours > Number.MAX_SAFE_INTEGER)) {
     issues.push({ field: "durationHours", message: "Длительность должна быть положительным числом часов." });
   }
+  if (input.preferences !== undefined && (typeof input.preferences !== "string" || input.preferences.length > 500)) {
+    issues.push({ field: "preferences", message: "Пожелания должны быть текстом длиной до 500 символов." });
+  }
   if (issues.length) throw new RequestValidationError(issues);
   return {
     city: (input.city as string).trim(),
@@ -38,5 +41,6 @@ export function validateRequest(value: unknown): RecommendationRequest {
     budgetKzt: input.budgetKzt as number,
     ...(input.language === undefined ? {} : { language: (input.language as string).trim() }),
     ...(input.durationHours === undefined ? {} : { durationHours: input.durationHours as number }),
+    ...(typeof input.preferences === "string" && input.preferences.trim() ? { preferences: input.preferences.trim() } : {}),
   };
 }

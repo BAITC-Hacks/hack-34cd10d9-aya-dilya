@@ -1,6 +1,7 @@
-import type { RecommendationRequest } from "../shared/contracts";
+import type { SmartRecommendationRequest } from "../shared/contracts";
 import { normalizeLabel, type Contractor } from "./model";
 import { REJECTION_ORDER, type MatchAnalysis, type RejectionReason } from "./matching";
+import { matchPreferences } from "./preferences";
 
 export function formatKzt(value: number): string {
   return String(value).replace(/\B(?=(\d{3})+(?!\d))/gu, " ") + " ₸";
@@ -40,13 +41,14 @@ export function selectDescriptionEvidence(description: string, eventFormat: stri
   return selected.slice(0, end > 90 ? end : 180).trimEnd();
 }
 
-export function explainMatch(profile: Contractor, request: RecommendationRequest): string {
+export function explainMatch(profile: Contractor, request: SmartRecommendationRequest): string {
   const eventFormat = profile.eventFormats.find((f) => normalizeLabel(f) === normalizeLabel(request.eventFormat))!;
   const facts = [
     `В профиле указан формат «${eventFormat}»`,
     `цена от ${formatKzt(profile.priceFromKzt)} при бюджете ${formatKzt(request.budgetKzt)}`,
   ];
-  const evidence = selectDescriptionEvidence(profile.description, request.eventFormat);
+  const preferredEvidence = request.preferences ? matchPreferences(profile, request.preferences)[0] : undefined;
+  const evidence = preferredEvidence?.quote.replace(/[.!?]+$/u, "") ?? selectDescriptionEvidence(profile.description, request.eventFormat);
   if (request.language !== undefined) {
     const requestedLanguage = request.language;
     const language = profile.languages.find((l) => normalizeLabel(l) === normalizeLabel(requestedLanguage))!;
@@ -76,7 +78,7 @@ const rejectionLabels: Record<RejectionReason, string> = {
   duration: "недостаточная длительность присутствия",
 };
 
-export function explainSummary(analysis: MatchAnalysis, request: RecommendationRequest): string {
+export function explainSummary(analysis: MatchAnalysis, request: SmartRecommendationRequest): string {
   const total = analysis.candidates.length;
   if (!total) return `В каталоге города «${request.city}» нет профилей категории «${request.category}».`;
   const count = analysis.eligible.length;
@@ -93,7 +95,9 @@ export function explainSummary(analysis: MatchAnalysis, request: RecommendationR
   const rejected = reasons.length
     ? ` Исключены (для каждого профиля указана первая причина): ${reasons.join("; ")}.`
     : "";
-  const ordering = count > 1 ? " Порядок — по начальной цене, при равенстве по id; это не рейтинг качества." : "";
+  const ordering = count > 1 ? (request.preferences
+    ? " Порядок — по числу тем пожеланий с подтверждающими цитатами, затем по начальной цене и id."
+    : " Порядок — по начальной цене, при равенстве по id; это не рейтинг качества.") : "";
   const pricing = count > 0 ? " Цена «от» не гарантирует итоговую стоимость." : "";
   return result + scarcity + rejected + ordering + pricing;
 }

@@ -1,12 +1,14 @@
 import {
   RecommendationServiceError, RequestValidationError,
-  type CatalogOptions, type RecommendationRequest, type RecommendationResponse,
+  type CatalogOptions, type SmartRecommendationRequest, type RecommendationResponse,
   type RecommendationService,
 } from "../shared/contracts";
 import { CALENDAR_RANGE, compareText, normalizeLabel, type Contractor } from "./model";
 import { analyzeMatches } from "./matching";
 import { explainMatch, explainSummary } from "./explanations";
 import { validateRequest } from "./validate-request";
+import { matchPreferences, requestedThemes, summarizePreferences } from "./preferences";
+import { suggestPlanB } from "./plan-b";
 
 /** Pass profiles validated by the CSV loader. The service owns a private snapshot. */
 export function createRecommendationService(source: readonly Contractor[]): RecommendationService {
@@ -34,7 +36,7 @@ export function createRecommendationService(source: readonly Contractor[]): Reco
         throw new RecommendationServiceError("Не удалось загрузить справочники каталога.");
       }
     },
-    async recommend(input: RecommendationRequest): Promise<RecommendationResponse> {
+    async recommend(input: SmartRecommendationRequest): Promise<RecommendationResponse> {
       try {
         const request = validateRequest(input);
         const analysis = analyzeMatches(profiles, request);
@@ -51,8 +53,16 @@ export function createRecommendationService(source: readonly Contractor[]): Reco
             synthetic: profile.synthetic,
             cityImputed: profile.cityImputed,
             priceImputed: profile.priceImputed,
+            ...(request.preferences ? {
+              evidence: matchPreferences(profile, request.preferences),
+              unmatchedPreferences: requestedThemes(request.preferences).filter((theme) =>
+                !matchPreferences(profile, request.preferences).some((e) => e.id === theme.id)).map((theme) => theme.label),
+            } : {}),
           })),
           summary: explainSummary(analysis, request),
+          ...(request.preferences ? { preferenceSummary: summarizePreferences(request.preferences,
+            analysis.eligible.filter((p) => matchPreferences(p, request.preferences).length > 0).length) } : {}),
+          ...(!analysis.eligible.length && analysis.candidates.length ? { alternatives: suggestPlanB(profiles, request) } : {}),
         };
       } catch (error) {
         if (error instanceof RequestValidationError || error instanceof RecommendationServiceError) throw error;

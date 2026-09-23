@@ -10,6 +10,32 @@ export interface RecommendationRequest {
   durationHours?: number;
 }
 
+/** Extends the MVP request without changing the existing form field mapping. */
+export interface SmartRecommendationRequest extends RecommendationRequest {
+  /** Soft preferences: affect order only, never relax the required filters. */
+  preferences?: string;
+}
+
+export interface MatchEvidence {
+  id: string;
+  label: string;
+  quote: string;
+  source: "description";
+}
+
+export interface PlanBOption {
+  id: string;
+  kind: "budget" | "date";
+  title: string;
+  description: string;
+  request: SmartRecommendationRequest;
+  candidateCount: number;
+  candidateNames: string[];
+  budgetIncreaseKzt?: number;
+  budgetIncreasePercent?: number;
+  dateOffsetDays?: number;
+}
+
 export interface RecommendationCard {
   id: string;
   name: string;
@@ -23,6 +49,11 @@ export interface RecommendationCard {
   synthetic: boolean;
   cityImputed: boolean;
   priceImputed: boolean;
+  evidence?: MatchEvidence[];
+  unmatchedPreferences?: string[];
+  /** Present only when a server-generated explanation passes validation. */
+  aiEvidenceIds?: string[];
+  aiEvidence?: { label: string; text: string }[];
 }
 
 export type RecommendationStatus = "matched" | "category_absent" | "no_match";
@@ -33,6 +64,9 @@ export interface RecommendationResponse {
   cards: RecommendationCard[];
   /** Explains the outcome, including why fewer than three were found. */
   summary: string;
+  alternatives?: PlanBOption[];
+  preferenceSummary?: string;
+  ai?: { mode: "rules" | "openai"; reason?: "not_configured" | "unavailable" | "invalid_response"; cached?: boolean };
 }
 
 export interface CatalogOptions {
@@ -48,11 +82,11 @@ export interface RecommendationService {
   /** Synchronous: catalog metadata is loaded with the application. */
   getCatalogOptions(): CatalogOptions;
   /** Rejects on invalid input/technical failure; empty matches resolve normally. */
-  recommend(request: RecommendationRequest): Promise<RecommendationResponse>;
+  recommend(request: SmartRecommendationRequest): Promise<RecommendationResponse>;
 }
 
 export interface ValidationIssue {
-  field: keyof RecommendationRequest | "request";
+  field: keyof SmartRecommendationRequest | "request";
   message: string;
 }
 
