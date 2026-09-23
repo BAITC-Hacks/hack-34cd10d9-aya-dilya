@@ -10,6 +10,12 @@ const handle = createApiHandler({ apiKey: process.env.OPENAI_API_KEY, model: pro
 const dist = resolve("dist");
 const mime: Record<string, string> = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png" };
 const server = createServer(async (req, res) => {
+  if (req.url === "/healthz" && (req.method === "GET" || req.method === "HEAD")) {
+    const ready = existsSync(resolve(dist, "index.html"));
+    res.writeHead(ready ? 200 : 503, { "Content-Type": "application/json", "Cache-Control": "no-store" });
+    res.end(req.method === "HEAD" ? undefined : JSON.stringify({ status: ready ? "ok" : "build_missing" }));
+    return;
+  }
   if (await handle(req, res)) return;
   if (req.method !== "GET" && req.method !== "HEAD") { res.writeHead(405); res.end(); return; }
   try {
@@ -22,5 +28,8 @@ const server = createServer(async (req, res) => {
   } catch { res.writeHead(404); res.end("Not found"); }
 });
 const port = Number(process.env.PORT ?? 4173);
+const host = process.env.HOST ?? "127.0.0.1";
+if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error("PORT must be between 1 and 65535");
 server.requestTimeout = 10_000;
-server.listen(port, "127.0.0.1", () => console.log(`Firebird: http://127.0.0.1:${port} (${process.env.OPENAI_API_KEY ? "OpenAI configured" : "local explanations"})`));
+server.listen(port, host, () => console.log(`Firebird: http://${host}:${port} (${process.env.OPENAI_API_KEY ? "OpenAI configured" : "local explanations"})`));
+process.on("SIGTERM", () => server.close(() => process.exit(0)));

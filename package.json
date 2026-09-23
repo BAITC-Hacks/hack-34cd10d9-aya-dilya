@@ -18,7 +18,9 @@
     "demo": "node --import tsx scripts/demo.ts",
     "demo:generate": "node --import tsx scripts/generate-demos.ts",
     "check:browser": "node --import tsx scripts/check-browser-build.ts",
-    "check": "npm run data:check && npm run typecheck && npm test && npm run check:browser"
+    "check": "npm run data:check && npm run typecheck && npm test && npm run check:browser",
+    "smoke:release": "node --import tsx scripts/smoke-release.ts",
+    "check:ai": "node --import tsx scripts/check-ai-live.ts"
   },
   "dependencies": {
     "react": "19.2.4",
