@@ -15,12 +15,11 @@ npm run dev -- --host 127.0.0.1
 
 ```sh
 npm run check
-node --import tsx --test tests/ui/*.test.ts
 npm run build
 npm run preview -- --host 127.0.0.1
 ```
 
-`npm run check` запускает проверки A: актуальность данных, TypeScript, 21 тест ядра и браузерную сборку сервиса. Пять тестов адаптера B запускаются отдельной командой выше: package.json и lock-файл не изменялись.
+`npm run check` проверяет актуальность данных, TypeScript, все 26 тестов (21 ядра и 5 UI-адаптера) и браузерную сборку сервиса. `npm run build` собирает полное приложение.
 
 ## Что работает
 
@@ -52,3 +51,4 @@ npm run preview -- --host 127.0.0.1
 - [Инструкция сервиса](docs/backend.md)
 - [План и решения UI](docs/ui-plan.md)
 - [Сценарий демонстрации](docs/demo-script.md)
+- [Проверка общей версии](docs/integration-check.md)
