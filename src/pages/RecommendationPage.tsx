@@ -7,6 +7,12 @@ import { createLatestRequestRunner, serviceAdapter } from "./recommendationServi
 
 type FormValues = { [K in keyof Required<SmartRecommendationRequest>]: string };
 const allExamples = [...examples.scenarios, ...smartExamples];
+const quickExamples = [
+  { key: "dense-autumn", title: "Корпоратив", detail: "Сравнить ведущих" },
+  { key: "rare-category", title: "Свадьба", detail: "Найти флориста" },
+  { key: "smart-it", title: "IT-корпоратив", detail: "Учесть пожелания" },
+  { key: "smart-plan-b", title: "План Б", detail: "Найти альтернативу" },
+];
 const emptyForm: FormValues = { city: "", date: "", eventFormat: "", category: "", budgetKzt: "", language: "", durationHours: "", preferences: "" };
 type Outcome = { request: SmartRecommendationRequest; response: RecommendationResponse; submitted: FormValues };
 const dateLabel = (value: string) => value.split("-").reverse().join(".");
@@ -101,9 +107,13 @@ export function RecommendationPage({ service = serviceAdapter }: { service?: Rec
       {issue && <p className="field-error" id={`${field}-error`}>{issue.message}</p>}</div>;
   }
   return <div className="app-shell">
-    <header className="header"><a className="brand" href="./" aria-label="Firebird — главная"><span className="brand-mark" aria-hidden="true">✳</span> firebird<span className="brand-dot">.</span></a><span className="header-note">ВАШЕ СОБЫТИЕ. ВАШИ ЛЮДИ.</span><span className="edition">MVP / 2026</span></header>
+    <header className="header"><a className="brand" href="./" aria-label="Firebird — главная"><span className="brand-mark" aria-hidden="true">✳</span> firebird<span className="brand-dot">.</span></a><span className="header-note">ВАШЕ СОБЫТИЕ. ВАШИ ЛЮДИ.</span><span className="edition">Подбор для вашего события</span></header>
     <main>
       <section className="hero"><div className="eyebrow"><span /> ОТ ИДЕИ К СОБЫТИЮ</div><h1>Хорошее событие<br />начинается с <em>людей.</em></h1><p>Расскажите о вашем мероприятии. Мы найдём до трёх<br className="desktop-break" /> подрядчиков и объясним, почему они подходят.</p><div className="hero-stamp" aria-hidden="true">✳</div></section>
+      <section className="quick-start" aria-label="Быстрые примеры">
+        <div className="quick-intro"><strong>Начните с примера</strong><span>Заполним форму — условия можно изменить</span></div>
+        <div className="quick-options">{quickExamples.map(item => <button type="button" key={item.key} disabled={!catalog} aria-pressed={exampleKey === item.key} onClick={() => loadExample(item.key)}><span>{item.title}</span><small>{item.detail}</small><i aria-hidden="true">↗</i></button>)}</div>
+      </section>
       <div className="workspace">
         <section className="form-panel" aria-labelledby="form-title"><div className="section-heading"><span className="step">01</span><h2 id="form-title">Ваше мероприятие</h2></div>
           {catalogError ? <div role="alert" className="error-box">Не удалось загрузить параметры подбора.<button onClick={loadCatalog}>Повторить загрузку</button></div> : !catalog ? <p role="status">Загружаем параметры…</p> : <>
@@ -121,12 +131,12 @@ export function RecommendationPage({ service = serviceAdapter }: { service?: Rec
               </div>
               {issues.length > 0 && <p role="alert" className="validation-summary">Проверьте выделенные поля.{issues.filter(issue => issue.field === "request").map(issue => ` ${issue.message}`)}</p>}
               <button className="submit-button" type="submit">{loading ? "Подобрать по новым условиям" : "Подобрать подрядчиков"}<span aria-hidden="true">↗</span></button>
-              <p className="form-footnote">Подбор по каталогу. Без регистрации и заявок.</p>
+              <p className="form-footnote">До трёх вариантов с объяснением выбора</p>{outcome && !loading && <a className="results-shortcut" href="#results">Посмотреть результаты ↓</a>}
             </form>
             <div className="examples"><label htmlFor="example">Нужна отправная точка?</label><select id="example" value={exampleKey} onChange={e => loadExample(e.target.value)}><option value="">Заполнить пример запроса</option>{allExamples.map(item => <option key={item.key} value={item.key}>{item.label}</option>)}</select><p>Пример только заполняет форму. Кнопка подбора запускает настоящий сервис.</p></div>
           </>}
         </section>
-        <section className="results-panel" aria-labelledby="results-title"><div className="section-heading"><span className="step">02</span><h2 id="results-title">Ваши люди</h2><span className="result-count">{outcome && !loading && !error ? `${outcome.response.cards.length} / 3` : 'ДО 3 ВАРИАНТОВ'}</span></div>
+        <section className="results-panel" id="results" aria-labelledby="results-title"><div className="section-heading"><span className="step">02</span><h2 id="results-title">Ваши варианты</h2><span className="result-count">{outcome && !loading && !error ? `${outcome.response.cards.length} / 3` : 'ДО 3 ВАРИАНТОВ'}</span></div>
           <div role="status" aria-live="polite" className="status-line">{loading ? "Подбираем подрядчиков…" : outcome ? outcome.response.summary : ""}</div>
           {loading ? <div className="empty-state" aria-busy="true"><span className="loading-symbol" aria-hidden="true">✳</span><h3>Ищем подходящих людей</h3><p>Сверяем условия с каталогом и календарём.</p></div> : error ? <div className="error-box" role="alert"><h3>Не удалось выполнить подбор</h3><p>Ваши условия сохранены. Попробуйте ещё раз.</p><button onClick={() => formRef.current?.requestSubmit()}>Повторить подбор</button></div> : outcome ? <>
             <div className="request-summary"><h3>Условия этого подбора</h3><ul><li>{outcome.request.city}</li><li>{dateLabel(outcome.request.date)}</li><li>{outcome.request.eventFormat}</li><li>{outcome.request.category}</li><li>до {money(outcome.request.budgetKzt)} ₸</li><li>Пожелания: {outcome.request.preferences ?? "не указаны"}</li><li>Язык: {outcome.request.language ?? "неважно"}</li><li>Длительность: {outcome.request.durationHours === undefined ? "неважно" : `${outcome.request.durationHours} ч`}</li></ul>{!sameForm(form, outcome.submitted) && <p className="changed-note">Условия изменены — повторите подбор.</p>}</div>
@@ -137,11 +147,11 @@ export function RecommendationPage({ service = serviceAdapter }: { service?: Rec
             </div>
             {outcome.response.status === "matched" ? <div className="cards">{outcome.response.cards.map((card, index) => <ContractorCard key={card.id} card={card} index={index} ai={outcome.response.ai?.mode === "openai"} />)}</div> : <div className="empty-state no-match"><span aria-hidden="true">↗</span><h3>{outcome.response.status === "category_absent" ? "В этом городе пока нет такой категории" : "По этим условиям никто не подходит"}</h3><p>{outcome.response.status === "category_absent" ? "Попробуйте выбрать другой город или категорию." : "Попробуйте другую дату, пересмотрите бюджет или необязательные условия: язык и длительность."}</p><p>Мы не меняли ваши параметры.</p><button className="text-button" onClick={() => document.getElementById(outcome.response.status === "category_absent" ? "category" : "budgetKzt")?.focus()}>Изменить условия <span aria-hidden="true">↗</span></button></div>}
             {outcome.response.status === "no_match" && !!outcome.response.alternatives?.length && <section className="plan-b" aria-label="План Б">
-              <h3>План Б</h3><p>Можно изменить одно условие. Применим его только по вашей кнопке и выполним новый подбор.</p>
+              <div className="plan-heading"><span aria-hidden="true">↗</span><div><h3>Есть другой вариант</h3><p>План Б · Меняем только одно условие, с вашего согласия.</p></div></div>
               {!sameForm(form, outcome.submitted) && <p>Эти предложения относятся к условиям предыдущего подбора. Применение заменит текущие поля условиями выбранного варианта.</p>}
               {outcome.response.alternatives.map(option => <article className="alternative" key={option.id}>
-                <h4>{option.title}</h4><p>{option.description}</p>
-                <p>{option.kind === "budget" ? `Бюджет: ${money(outcome.request.budgetKzt)} → ${money(option.request.budgetKzt)} ₸` : `Дата: ${dateLabel(outcome.request.date)} → ${dateLabel(option.request.date)}`}</p>
+                <span className="alternative-label">{option.kind === "budget" ? "Немного больше бюджет" : "Ближайшая подходящая дата"}</span><h4>{option.title}</h4><p>{option.description}</p>
+                <p className="alternative-change">{option.kind === "budget" ? `Бюджет: ${money(outcome.request.budgetKzt)} → ${money(option.request.budgetKzt)} ₸` : `Дата: ${dateLabel(outcome.request.date)} → ${dateLabel(option.request.date)}`}</p>
                 <p>Подходящих кандидатов: {option.candidateCount}. {option.candidateNames.join(", ")}</p>
                 <button type="button" onClick={() => applyAlternative(option)}>Применить: {option.title}</button>
               </article>)}
