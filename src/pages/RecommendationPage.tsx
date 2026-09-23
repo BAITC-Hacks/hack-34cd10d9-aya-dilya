@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { RequestValidationError, type CatalogOptions, type RecommendationRequest, type RecommendationResponse, type RecommendationService, type ValidationIssue } from "../shared/contracts";
+import { RequestValidationError, type CatalogOptions, type SmartRecommendationRequest, type RecommendationResponse, type RecommendationService, type PlanBOption, type ValidationIssue } from "../shared/contracts";
+import { smartExamples } from "../data/smart-examples";
 import examples from "../data/demo-queries.json";
 import { ContractorCard, money } from "../components/ContractorCard";
 import { createLatestRequestRunner, serviceAdapter } from "./recommendationServiceAdapter";
 
-type FormValues = { [K in keyof Required<RecommendationRequest>]: string };
-const emptyForm: FormValues = { city: "", date: "", eventFormat: "", category: "", budgetKzt: "", language: "", durationHours: "" };
-type Outcome = { request: RecommendationRequest; response: RecommendationResponse; submitted: FormValues };
+type FormValues = { [K in keyof Required<SmartRecommendationRequest>]: string };
+const allExamples = [...examples.scenarios, ...smartExamples];
+const emptyForm: FormValues = { city: "", date: "", eventFormat: "", category: "", budgetKzt: "", language: "", durationHours: "", preferences: "" };
+type Outcome = { request: SmartRecommendationRequest; response: RecommendationResponse; submitted: FormValues };
 const dateLabel = (value: string) => value.split("-").reverse().join(".");
 const sameForm = (a: FormValues, b: FormValues) => Object.keys(a).every(key => a[key as keyof FormValues] === b[key as keyof FormValues]);
 
@@ -36,20 +38,24 @@ export function RecommendationPage({ service = serviceAdapter }: { service?: Rec
     setExampleKey("");
   }
   function loadExample(key: string) {
-    const example = examples.scenarios.find(item => item.key === key);
+    const example = allExamples.find(item => item.key === key);
     if (!example) return;
-    const request: RecommendationRequest = example.request;
+    const request: SmartRecommendationRequest = example.request;
     runner.invalidate(); setLoading(false); setError(false); setIssues([]);
     setForm({ city: request.city, date: request.date, category: request.category, eventFormat: request.eventFormat,
-      budgetKzt: String(request.budgetKzt), language: request.language ?? "", durationHours: request.durationHours === undefined ? "" : String(request.durationHours) });
+      budgetKzt: String(request.budgetKzt), language: request.language ?? "", durationHours: request.durationHours === undefined ? "" : String(request.durationHours), preferences: request.preferences ?? "" });
     setExampleKey(key);
   }
   async function submit(event: FormEvent) {
     event.preventDefault();
+    await runForm(form);
+  }
+  async function runForm(form: FormValues) {
     runner.invalidate(); setLoading(false); setError(false); setOutcome(undefined);
     const submitted = { ...form };
-    const request: RecommendationRequest = { city: form.city, date: form.date, eventFormat: form.eventFormat,
+    const request: SmartRecommendationRequest = { city: form.city, date: form.date, eventFormat: form.eventFormat,
       category: form.category, budgetKzt: form.budgetKzt.trim() === "" ? NaN : Number(form.budgetKzt),
+      ...(form.preferences.trim() ? { preferences: form.preferences.trim() } : {}),
       ...(form.language ? { language: form.language } : {}),
       ...(form.durationHours.trim() ? { durationHours: Number(form.durationHours) } : {}) };
     const missing: ValidationIssue[] = [];
@@ -66,6 +72,14 @@ export function RecommendationPage({ service = serviceAdapter }: { service?: Rec
       if (failure instanceof RequestValidationError) setIssues(failure.issues);
       else setError(true);
     });
+  }
+  function applyAlternative(option: PlanBOption) {
+    const request = option.request;
+    const values: FormValues = { city: request.city, date: request.date, category: request.category,
+      eventFormat: request.eventFormat, budgetKzt: String(request.budgetKzt), language: request.language ?? "",
+      durationHours: request.durationHours === undefined ? "" : String(request.durationHours), preferences: request.preferences ?? "" };
+    setForm(values); setExampleKey("");
+    void runForm(values);
   }
   function select(field: "city" | "category" | "eventFormat" | "language", label: string, options: string[], optional = false) {
     const issue = issues.find(item => item.field === field);
@@ -96,18 +110,42 @@ export function RecommendationPage({ service = serviceAdapter }: { service?: Rec
             <form ref={formRef} onSubmit={submit} noValidate>
               <div className="form-grid">{select("city", "Город", catalog.cities)}{input("date", "Дата мероприятия")}{select("eventFormat", "Формат", catalog.eventFormats)}{select("category", "Категория", catalog.categories)}<div className="full-width">{input("budgetKzt", "Бюджет в тенге, ₸")}</div></div>
               <div className="optional-heading">Чуть больше деталей <span>по желанию</span></div><div className="form-grid">{select("language", "Язык", catalog.languages, true)}{input("durationHours", "Длительность, ч", true)}</div>
+              <div className="field preferences-field"><label htmlFor="preferences">Пожелания <span>необязательно</span></label>
+                <textarea id="preferences" name="preferences" maxLength={500} rows={3} value={form.preferences}
+                  placeholder="Например: IT-корпоратив, тактичный ведущий"
+                  onChange={e => update("preferences", e.target.value)}
+                  aria-invalid={issues.some(issue => issue.field === "preferences")}
+                  aria-describedby="preferences-hint preferences-error" />
+                <p className="field-hint" id="preferences-hint">{form.preferences.length}/500 · Пожелания влияют на порядок, но не ослабляют условия.</p>
+                <p id="preferences-error" className="field-error">{issues.find(issue => issue.field === "preferences")?.message}</p>
+              </div>
               {issues.length > 0 && <p role="alert" className="validation-summary">Проверьте выделенные поля.{issues.filter(issue => issue.field === "request").map(issue => ` ${issue.message}`)}</p>}
               <button className="submit-button" type="submit">{loading ? "Подобрать по новым условиям" : "Подобрать подрядчиков"}<span aria-hidden="true">↗</span></button>
               <p className="form-footnote">Подбор по каталогу. Без регистрации и заявок.</p>
             </form>
-            <div className="examples"><label htmlFor="example">Нужна отправная точка?</label><select id="example" value={exampleKey} onChange={e => loadExample(e.target.value)}><option value="">Заполнить пример запроса</option>{examples.scenarios.map(item => <option key={item.key} value={item.key}>{item.label}</option>)}</select><p>Пример только заполняет форму. Кнопка подбора запускает настоящий сервис.</p></div>
+            <div className="examples"><label htmlFor="example">Нужна отправная точка?</label><select id="example" value={exampleKey} onChange={e => loadExample(e.target.value)}><option value="">Заполнить пример запроса</option>{allExamples.map(item => <option key={item.key} value={item.key}>{item.label}</option>)}</select><p>Пример только заполняет форму. Кнопка подбора запускает настоящий сервис.</p></div>
           </>}
         </section>
         <section className="results-panel" aria-labelledby="results-title"><div className="section-heading"><span className="step">02</span><h2 id="results-title">Ваши люди</h2><span className="result-count">{outcome && !loading && !error ? `${outcome.response.cards.length} / 3` : 'ДО 3 ВАРИАНТОВ'}</span></div>
           <div role="status" aria-live="polite" className="status-line">{loading ? "Подбираем подрядчиков…" : outcome ? outcome.response.summary : ""}</div>
           {loading ? <div className="empty-state" aria-busy="true"><span className="loading-symbol" aria-hidden="true">✳</span><h3>Ищем подходящих людей</h3><p>Сверяем условия с каталогом и календарём.</p></div> : error ? <div className="error-box" role="alert"><h3>Не удалось выполнить подбор</h3><p>Ваши условия сохранены. Попробуйте ещё раз.</p><button onClick={() => formRef.current?.requestSubmit()}>Повторить подбор</button></div> : outcome ? <>
-            <div className="request-summary"><h3>Условия этого подбора</h3><ul><li>{outcome.request.city}</li><li>{dateLabel(outcome.request.date)}</li><li>{outcome.request.eventFormat}</li><li>{outcome.request.category}</li><li>до {money(outcome.request.budgetKzt)} ₸</li><li>Язык: {outcome.request.language ?? "неважно"}</li><li>Длительность: {outcome.request.durationHours === undefined ? "неважно" : `${outcome.request.durationHours} ч`}</li></ul>{!sameForm(form, outcome.submitted) && <p className="changed-note">Условия изменены — повторите подбор.</p>}</div>
-            {outcome.response.status === "matched" ? <div className="cards">{outcome.response.cards.map((card, index) => <ContractorCard key={card.id} card={card} index={index} />)}</div> : <div className="empty-state no-match"><span aria-hidden="true">↗</span><h3>{outcome.response.status === "category_absent" ? "В этом городе пока нет такой категории" : "По этим условиям никто не подходит"}</h3><p>{outcome.response.status === "category_absent" ? "Попробуйте выбрать другой город или категорию." : "Попробуйте другую дату, пересмотрите бюджет или необязательные условия: язык и длительность."}</p><p>Мы не меняли ваши параметры.</p><button className="text-button" onClick={() => document.getElementById(outcome.response.status === "category_absent" ? "category" : "budgetKzt")?.focus()}>Изменить условия <span aria-hidden="true">↗</span></button></div>}
+            <div className="request-summary"><h3>Условия этого подбора</h3><ul><li>{outcome.request.city}</li><li>{dateLabel(outcome.request.date)}</li><li>{outcome.request.eventFormat}</li><li>{outcome.request.category}</li><li>до {money(outcome.request.budgetKzt)} ₸</li><li>Пожелания: {outcome.request.preferences ?? "не указаны"}</li><li>Язык: {outcome.request.language ?? "неважно"}</li><li>Длительность: {outcome.request.durationHours === undefined ? "неважно" : `${outcome.request.durationHours} ч`}</li></ul>{!sameForm(form, outcome.submitted) && <p className="changed-note">Условия изменены — повторите подбор.</p>}</div>
+            <div className="explanation-mode"><strong>{outcome.response.ai?.mode === "openai" ? "AI · Объяснение подготовлено с помощью AI" : "Объяснение по данным каталога"}</strong>
+              {outcome.response.ai?.reason === "unavailable" && <p>AI или сервер недоступен. Подбор выполнен по правилам каталога.</p>}
+              {outcome.response.ai?.reason === "invalid_response" && <p>Ответ AI не прошёл проверку. Использовано объяснение по данным каталога.</p>}
+              {outcome.response.preferenceSummary && <p>{outcome.response.preferenceSummary}</p>}
+            </div>
+            {outcome.response.status === "matched" ? <div className="cards">{outcome.response.cards.map((card, index) => <ContractorCard key={card.id} card={card} index={index} ai={outcome.response.ai?.mode === "openai"} />)}</div> : <div className="empty-state no-match"><span aria-hidden="true">↗</span><h3>{outcome.response.status === "category_absent" ? "В этом городе пока нет такой категории" : "По этим условиям никто не подходит"}</h3><p>{outcome.response.status === "category_absent" ? "Попробуйте выбрать другой город или категорию." : "Попробуйте другую дату, пересмотрите бюджет или необязательные условия: язык и длительность."}</p><p>Мы не меняли ваши параметры.</p><button className="text-button" onClick={() => document.getElementById(outcome.response.status === "category_absent" ? "category" : "budgetKzt")?.focus()}>Изменить условия <span aria-hidden="true">↗</span></button></div>}
+            {outcome.response.status === "no_match" && !!outcome.response.alternatives?.length && <section className="plan-b" aria-label="План Б">
+              <h3>План Б</h3><p>Можно изменить одно условие. Применим его только по вашей кнопке и выполним новый подбор.</p>
+              {!sameForm(form, outcome.submitted) && <p>Эти предложения относятся к условиям предыдущего подбора. Применение заменит текущие поля условиями выбранного варианта.</p>}
+              {outcome.response.alternatives.map(option => <article className="alternative" key={option.id}>
+                <h4>{option.title}</h4><p>{option.description}</p>
+                <p>{option.kind === "budget" ? `Бюджет: ${money(outcome.request.budgetKzt)} → ${money(option.request.budgetKzt)} ₸` : `Дата: ${dateLabel(outcome.request.date)} → ${dateLabel(option.request.date)}`}</p>
+                <p>Подходящих кандидатов: {option.candidateCount}. {option.candidateNames.join(", ")}</p>
+                <button type="button" onClick={() => applyAlternative(option)}>Применить: {option.title}</button>
+              </article>)}
+            </section>}
           </> : <div className="empty-state initial-state"><div className="empty-art" aria-hidden="true"><span>✳</span><i>01</i><i>02</i><i>03</i></div><h3>Здесь начнётся ваша команда</h3><p>Заполните условия мероприятия —<br />мы предложим подходящих подрядчиков.</p><div className="empty-caption">КОНКРЕТНЫЕ ПРИЧИНЫ. ПОНЯТНЫЙ ВЫБОР.</div></div>}
         </section>
       </div>

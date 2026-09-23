@@ -684,3 +684,24 @@ footer span:last-child {
     animation:none;
   }
 }
+textarea { font: inherit; width: 100%; min-width: 0; resize: vertical; padding: 12px; border: 1px solid #d5d8d2; border-radius: 8px; color: #252b29; background: white; }
+textarea:focus-visible { outline: 3px solid #b8482c; outline-offset: 3px; }
+textarea[aria-invalid=true] { border-color: #b23d29; }
+.preferences-field { margin-top: 20px; }
+.explanation-mode { background: #eaf0e2; border-radius: 10px; padding: 14px 16px; margin: 16px 0; font-size: 12px; overflow-wrap: anywhere; }
+.explanation-mode p:last-child { margin-bottom: 0; }
+.evidence, .ai-evidence { margin-top: 16px; font-size: 12px; }
+.evidence h4 { margin: 0; }
+.evidence figure { margin: 12px 0 0; }
+.evidence blockquote { margin: 0; padding: 8px 12px; border-left: 3px solid #a5ae8e; background: #f5f6ef; white-space: pre-line; }
+.evidence figcaption { color: #626b56; font-size: 10px; margin-top: 5px; }
+.unmatched { font-size: 11px; color: #765827; }
+.ai-evidence summary { cursor: pointer; padding: 8px 0; }
+.ai-evidence li { margin-bottom: 8px; }
+.plan-b { margin-top: 24px; overflow-wrap: anywhere; }
+.plan-b>h3 { font-family: Georgia, serif; font-size: 26px; margin-bottom: 8px; }
+.plan-b p { font-size: 12px; }
+.alternative { padding: 18px; border: 1px solid #d6dccc; border-radius: 10px; background: #fff; margin-top: 12px; }
+.alternative h4 { margin: 0; }
+.alternative button { padding: 12px; border-radius: 7px; background: #41563c; color: white; font-size: 12px; max-width: 100%; text-align: left; }
+.request-summary li { overflow-wrap: anywhere; max-width: 100%; }

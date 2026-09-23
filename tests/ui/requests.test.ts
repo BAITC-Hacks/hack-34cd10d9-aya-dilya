@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createLatestRequestRunner, serviceAdapter } from "../../src/pages/recommendationServiceAdapter";
+import { createLatestRequestRunner, createHttpAdapter } from "../../src/pages/recommendationServiceAdapter";
 import { recommendationService } from "../../src/core/index";
 import type { RecommendationResponse, RecommendationService } from "../../src/shared/contracts";
 import examples from "../../src/data/demo-queries.json";
@@ -40,7 +40,8 @@ test("current technical failure is reported rather than converted to no_match", 
   assert.equal(received, failure);
 });
 
-test("production adapter returns every saved scenario unchanged", async () => {
+test("HTTP adapter returns every saved scenario unchanged", async () => {
+  const serviceAdapter = createHttpAdapter(async (_, init) => new Response(JSON.stringify(await recommendationService.recommend(JSON.parse(String(init?.body))))));
   assert.deepEqual(serviceAdapter.getCatalogOptions(), recommendationService.getCatalogOptions());
   for (const scenario of examples.scenarios) {
     const result = await serviceAdapter.recommend(scenario.request);
