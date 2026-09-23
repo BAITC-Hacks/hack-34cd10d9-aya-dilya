@@ -92,13 +92,45 @@ test("every Plan B alternative changes one field, retains mandatory conditions a
   }
 });
 
-test("Plan B cannot combine concessions, exceed 20%, cross categories or divide by zero", async () => {
+test("Plan B labels large budget concessions without combining conditions or dividing by zero", async () => {
   const service = createRecommendationService([contractor({ priceFromKzt: 120000 })]);
   const boundary = await service.recommend(request());
   assert.equal(boundary.alternatives![0].budgetIncreasePercent, 20);
-  for (const query of [request({ budgetKzt: 99999 }), request({ budgetKzt: 0 }), request({ eventFormat: "свадьба" })]) {
+  for (const query of [request({ eventFormat: "свадьба" })]) {
     assert.deepEqual((await service.recommend(query)).alternatives, []);
   }
+  const large = await service.recommend(request({ budgetKzt: 99999 }));
+  assert.match(large.alternatives![0].description, /Существенное/);
+  const zero = await service.recommend(request({ budgetKzt: 0 }));
+  assert.equal(zero.alternatives![0].budgetIncreasePercent, undefined);
+  assert.equal(zero.alternatives![0].request.budgetKzt, 120000);
   assert.equal((await service.recommend(request({ city: "Астана" }))).alternatives, undefined);
   assert.equal((await service.recommend(request({ budgetKzt: 120000 }))).alternatives, undefined);
+});
+
+
+test("Astana wedding offers an honest budget change instead of silently hiding the alternative", async () => {
+  const query = { city: "Астана", date: "2026-09-26", eventFormat: "свадьба", category: "Ведущий", budgetKzt: 400000, language: "русский", durationHours: 6 };
+  const result = await recommend(query);
+  assert.equal(result.status, "no_match"); assert.equal(result.cards.length, 0);
+  const option = result.alternatives![0];
+  assert.deepEqual(option.request, { ...query, budgetKzt: 800000 });
+  assert.equal(option.budgetIncreasePercent, 100);
+  assert.match(option.description, /Существенное/);
+  assert.equal((await recommend(option.request)).cards[0].id, "HK-80581");
+});
+
+test("Plan B searches beyond one week and prefers the original budget", async () => {
+  const busyDates = Array.from({length: 12}, (_, i) => new Date(Date.UTC(2026, 8, 23+i)).toISOString().slice(0,10));
+  const service = createRecommendationService([
+    contractor({id: "near-price", priceFromKzt: 200000}),
+    contractor({id: "later-date", priceFromKzt: 100000, busyDates}),
+  ]);
+  const result = await service.recommend(request({date:"2026-09-23"}));
+  assert.ok(result.alternatives!.every(a => a.kind === "date"));
+  assert.equal(result.alternatives![0].dateOffsetDays, 12);
+  for (const option of result.alternatives!) {
+    assert.equal(option.request.budgetKzt, 100000);
+    assert.equal((await service.recommend(option.request)).status, "matched");
+  }
 });
