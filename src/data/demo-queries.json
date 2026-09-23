@@ -1,0 +1,172 @@
+{
+  "sourceSha256": "6a724b6b7dfb5973343e68ba18dadb60fc807d87e3d78f03ee86fb26cb089f7d",
+  "dateChange": {
+    "fromKey": "dense-autumn",
+    "toKey": "different-date",
+    "removedBusyIds": [
+      "HK-29829",
+      "HK-35215",
+      "HK-27222"
+    ]
+  },
+  "scenarios": [
+    {
+      "key": "dense-autumn",
+      "label": "Плотная категория: ранжирование более трёх кандидатов",
+      "request": {
+        "city": "Алматы",
+        "category": "Ведущий",
+        "eventFormat": "корпоратив",
+        "budgetKzt": 2000000,
+        "date": "2026-10-04"
+      },
+      "expected": {
+        "status": "matched",
+        "ids": [
+          "HK-29829",
+          "HK-35215",
+          "HK-27222"
+        ],
+        "candidateCount": 10,
+        "eligibleCount": 5
+      }
+    },
+    {
+      "key": "different-date",
+      "label": "Тот же запрос на другую дату",
+      "request": {
+        "city": "Алматы",
+        "category": "Ведущий",
+        "eventFormat": "корпоратив",
+        "budgetKzt": 2000000,
+        "date": "2026-10-05"
+      },
+      "expected": {
+        "status": "matched",
+        "ids": [
+          "HK-88430",
+          "HK-44733",
+          "HK-77838"
+        ],
+        "candidateCount": 10,
+        "eligibleCount": 4
+      }
+    },
+    {
+      "key": "rare-category",
+      "label": "Редкая категория: всего два профиля в городе",
+      "request": {
+        "city": "Алматы",
+        "category": "Флорист",
+        "eventFormat": "свадьба",
+        "budgetKzt": 350000,
+        "date": "2026-09-23"
+      },
+      "expected": {
+        "status": "matched",
+        "ids": [
+          "HK-39372",
+          "HK-90001"
+        ],
+        "candidateCount": 2,
+        "eligibleCount": 2
+      }
+    },
+    {
+      "key": "category-absent",
+      "label": "В городе нет категории",
+      "request": {
+        "city": "Астана",
+        "category": "Лайв-бэнд",
+        "eventFormat": "корпоратив",
+        "budgetKzt": 2000000,
+        "date": "2026-10-04"
+      },
+      "expected": {
+        "status": "category_absent",
+        "ids": [],
+        "candidateCount": 0,
+        "eligibleCount": 0
+      }
+    },
+    {
+      "key": "budget-no-match",
+      "label": "Категория есть, бюджет исключает всех",
+      "request": {
+        "city": "Алматы",
+        "category": "Ведущий",
+        "eventFormat": "корпоратив",
+        "budgetKzt": 0,
+        "date": "2026-10-04"
+      },
+      "expected": {
+        "status": "no_match",
+        "ids": [],
+        "candidateCount": 10,
+        "eligibleCount": 0
+      }
+    },
+    {
+      "key": "all-busy",
+      "label": "Декабрь: все кандидаты заняты",
+      "request": {
+        "city": "Астана",
+        "category": "Флорист",
+        "eventFormat": "корпоратив",
+        "budgetKzt": 350000,
+        "date": "2026-12-02"
+      },
+      "expected": {
+        "status": "no_match",
+        "ids": [],
+        "candidateCount": 1,
+        "eligibleCount": 0
+      }
+    },
+    {
+      "key": "venue",
+      "label": "Площадка: календарь, язык и длительность",
+      "request": {
+        "city": "Алматы",
+        "category": "Банкетный зал",
+        "eventFormat": "корпоратив",
+        "budgetKzt": 6000000,
+        "date": "2026-09-23",
+        "language": "русский",
+        "durationHours": 8
+      },
+      "expected": {
+        "status": "matched",
+        "ids": [
+          "HK-58236",
+          "HK-69010",
+          "HK-99701"
+        ],
+        "candidateCount": 7,
+        "eligibleCount": 3
+      }
+    },
+    {
+      "key": "duration-not-applicable",
+      "label": "Флорист: длительность присутствия неприменима",
+      "request": {
+        "city": "Алматы",
+        "category": "Флорист",
+        "eventFormat": "свадьба",
+        "budgetKzt": 350000,
+        "date": "2026-09-23",
+        "durationHours": 24,
+        "language": "русский"
+      },
+      "expected": {
+        "status": "matched",
+        "ids": [
+          "HK-39372",
+          "HK-90001"
+        ],
+        "candidateCount": 2,
+        "eligibleCount": 2
+      }
+    }
+  ]
+}
